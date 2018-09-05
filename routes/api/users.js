@@ -4,14 +4,14 @@ const gravatar = require("gravatar");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { secretOrKey } = require("../../config/keys");
+const passport = require("passport");
 
-//Load model
+//Load input validation
+const validateRegisterInput = require("../../validation/register");
+const validateLoginInput = require("../../validation/login");
+
+//Load User model
 const User = require("../../models/User");
-
-// @route   GET api/users/test
-// @desc    Test users route
-// @access  Public
-router.get("/test", (req, res) => res.json({ msg: "User Works!" }));
 
 let getAvatar = email => {
   const avatar = gravatar.url(email, {
@@ -45,6 +45,7 @@ let encryptPassword = (user, res) => {
   });
 };
 
+// Registers/creates a new user
 let register = async (req, res) => {
   const { name, email, password } = req.body;
   const user = await getUser(email);
@@ -92,6 +93,11 @@ let login = async (req, res) => {
 // @desc    Register user
 // @access  Public
 router.post("/register", (req, res) => {
+  //Check validation
+  const { errors, isValid } = validateRegisterInput(req.body);
+  if (!isValid) {
+    return res.status(400).json(errors);
+  }
   register(req, res);
 });
 
@@ -99,7 +105,27 @@ router.post("/register", (req, res) => {
 // @desc    Login user / Return JWT
 // @access  Public
 router.post("/login", (req, res) => {
+  //Check validation
+  const { errors, isValid } = validateLoginInput(req.body);
+  if (!isValid) {
+    return res.status(400).json(errors);
+  }
   login(req, res);
 });
+
+// @route   GET api/users/current
+// @desc    Return current user
+// @access  Private. Protected route
+router.get(
+  "/current",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    res.json({
+      id: req.user.id,
+      name: req.user.name,
+      email: req.user.email
+    });
+  }
+);
 
 module.exports = router;
